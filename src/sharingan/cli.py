@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from sharingan import __version__
+from sharingan.auth.prod_guard import ProdGuardError, check_prod_guard
 from sharingan.config import SharinganConfig
 from sharingan.discover.detector import detect_frameworks
 from sharingan.generate.test_planner import generate_test_plan
@@ -38,7 +39,16 @@ def cmd_init(args: argparse.Namespace) -> None:
 def cmd_scan(args: argparse.Namespace) -> None:
     """Scan and discover routes in the target project."""
     project_dir = Path(args.dir).resolve()
-    config = SharinganConfig(project_dir=project_dir)
+    config = SharinganConfig(
+        project_dir=project_dir,
+        allow_prod=getattr(args, "allow_prod", False),
+    )
+
+    try:
+        check_prod_guard(config)
+    except ProdGuardError as e:
+        console.print(f"[bold red]Production guard:[/bold red] {e}")
+        sys.exit(1)
 
     console.print("Scanning project...", style="bold blue")
     frameworks = detect_frameworks(project_dir)
@@ -100,6 +110,11 @@ def main() -> None:
 
     scan_parser = subparsers.add_parser("scan", help="Scan project and discover routes")
     scan_parser.add_argument("--dir", default=".", help="Project directory")
+    scan_parser.add_argument(
+        "--allow-prod",
+        action="store_true",
+        help="Allow scanning when base URL looks like production",
+    )
 
     report_parser = subparsers.add_parser("report", help="Generate report from last run")
     report_parser.add_argument("--dir", default=".", help="Project directory")

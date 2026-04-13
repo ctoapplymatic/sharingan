@@ -16,9 +16,18 @@ class TestCase(BaseModel):
     name: str = Field(description="Test name (snake_case)")
     route: str = Field(description="Route being tested")
     method: str = Field(default="GET", description="HTTP method")
-    category: Literal["auth", "navigation", "form", "api", "permission", "accessibility"] = Field(
-        description="Test category"
-    )
+    category: Literal[
+        "auth",
+        "navigation",
+        "form",
+        "api",
+        "permission",
+        "accessibility",
+        "authenticated",
+        "visual",
+        "perf",
+        "schema",
+    ] = Field(description="Test category")
     priority: Literal["critical", "high", "medium", "low"] = Field(description="Test priority")
     description: str = Field(description="What this test verifies")
     source_file: str = Field(default="", description="Source file for the route under test")
@@ -35,18 +44,15 @@ class TestPlan(BaseModel):
     api_tests: list[TestCase] = Field(default_factory=list)
     permission_tests: list[TestCase] = Field(default_factory=list)
     accessibility_tests: list[TestCase] = Field(default_factory=list)
+    authenticated_tests: list[TestCase] = Field(default_factory=list)
+    visual_tests: list[TestCase] = Field(default_factory=list)
+    perf_tests: list[TestCase] = Field(default_factory=list)
+    schema_tests: list[TestCase] = Field(default_factory=list)
 
     @property
     def total_tests(self) -> int:
         """Total number of test cases."""
-        return (
-            len(self.auth_tests)
-            + len(self.navigation_tests)
-            + len(self.form_tests)
-            + len(self.api_tests)
-            + len(self.permission_tests)
-            + len(self.accessibility_tests)
-        )
+        return len(self.all_tests)
 
     @property
     def all_tests(self) -> list[TestCase]:
@@ -58,6 +64,10 @@ class TestPlan(BaseModel):
             + self.api_tests
             + self.permission_tests
             + self.accessibility_tests
+            + self.authenticated_tests
+            + self.visual_tests
+            + self.perf_tests
+            + self.schema_tests
         )
 
 
@@ -103,6 +113,24 @@ def generate_test_plan(frameworks: list[FrameworkInfo], config: SharinganConfig)
         page_routes.extend(r for r in fw.routes if r.route_type in ("page", "dynamic"))
     if page_routes:
         _plan_accessibility_tests(plan, page_routes)
+
+    # Add authenticated flow tests for protected routes
+    protected_routes = [r for fw in frameworks for r in fw.routes if r.has_auth and r.route_type in ("page", "dynamic")]
+    if protected_routes:
+        _plan_authenticated_tests(plan, protected_routes)
+
+    # Add visual regression tests for page routes
+    if config.visual.enabled and page_routes:
+        _plan_visual_tests(plan, page_routes)
+
+    # Add performance tests for critical pages
+    if config.perf.enabled and page_routes:
+        _plan_perf_tests(plan, page_routes)
+
+    # Add schema validation tests for API endpoints
+    api_routes = [r for fw in frameworks for r in fw.routes if r.route_type == "api"]
+    if config.schema_validation.enabled and api_routes:
+        _plan_schema_tests(plan, api_routes)
 
     return plan
 
@@ -150,6 +178,28 @@ def _plan_form_tests(plan: TestPlan, route: RouteInfo) -> None:
         description=f"Verify form on {route.path} shows validation errors for invalid data",
         source_file=route.source_file,
     ))
+
+    plan.form_tests.append(TestCase(
+        name=f"{safe_name}_form_invalid_email",
+        route=route.path,
+        method="POST",
+        category="form",
+        priority="high",
+        description=f"Verify form on {route.path} rejects invalid email format",
+        source_file=route.source_file,
+    ))
+
+    # If this looks like a signup form, add password mismatch test
+    if any(kw in route.path.lower() for kw in ["signup", "register", "create-account"]):
+        plan.form_tests.append(TestCase(
+            name=f"{safe_name}_form_password_mismatch",
+            route=route.path,
+            method="POST",
+            category="form",
+            priority="critical",
+            description=f"Verify signup on {route.path} rejects mismatched password confirmation",
+            source_file=route.source_file,
+        ))
 
 
 def _plan_api_tests(plan: TestPlan, route: RouteInfo) -> None:
@@ -251,5 +301,102 @@ def _plan_accessibility_tests(plan: TestPlan, page_routes: list[RouteInfo]) -> N
             category="accessibility",
             priority="medium",
             description=f"Verify {route.path} has proper heading hierarchy, alt text, and ARIA labels",
+            source_file=route.source_file,
+        ))
+
+
+def _plan_authenticated_tests(plan: TestPlan, protected_routes: list[RouteInfo]) -> None:
+    """Plan authenticated flow tests for protected routes.
+
+    These tests run AFTER a successful login (via auth.setup.ts) and verify
+    that authenticated users can access protected content.
+    """
+    for route in protected_routes:
+        safe_name = route.path.strip("/").replace("/", "_").replace(":", "") or "home"
+
+        plan.authenticated_tests.append(TestCase(
+            name=f"authenticated_access_{safe_name}",
+            route=route.path,
+            category="authenticated",
+            priority="critical",
+            description=f"Authenticated user can access {route.path}",
+            source_file=route.source_file,
+        ))
+
+        plan.authenticated_tests.append(TestCase(
+            name=f"authenticated_session_persists_{safe_name}",
+            route=route.path,
+            category="authenticated",
+            priority="high",
+            description=f"Session persists on reload for {route.path}",
+            source_file=route.source_file,
+        ))
+
+    # Add a logout test
+    plan.authenticated_tests.append(TestCase(
+        name="authenticated_logout_clears_session",
+        route="/",
+        category="authenticated",
+        priority="critical",
+        description="Logout button clears session and protected routes become inaccessible",
+    ))
+
+
+def _plan_visual_tests(plan: TestPlan, page_routes: list[RouteInfo]) -> None:
+    """Plan visual regression tests for page routes."""
+    seen: set[str] = set()
+    for route in page_routes:
+        if ":" in route.path or route.path in seen:
+            continue
+        seen.add(route.path)
+        safe_name = route.path.strip("/").replace("/", "_") or "home"
+
+        plan.visual_tests.append(TestCase(
+            name=f"visual_{safe_name}",
+            route=route.path,
+            category="visual",
+            priority="medium",
+            description=f"Visual regression snapshot for {route.path}",
+            source_file=route.source_file,
+        ))
+
+
+def _plan_perf_tests(plan: TestPlan, page_routes: list[RouteInfo]) -> None:
+    """Plan performance tests for page routes (limited to critical pages)."""
+    seen: set[str] = set()
+    # Focus on the first few key pages to keep test runs reasonable
+    for route in page_routes[:10]:
+        if ":" in route.path or route.path in seen:
+            continue
+        seen.add(route.path)
+        safe_name = route.path.strip("/").replace("/", "_") or "home"
+
+        plan.perf_tests.append(TestCase(
+            name=f"perf_{safe_name}",
+            route=route.path,
+            category="perf",
+            priority="medium",
+            description=f"Performance metrics (FCP, LCP, TTI) for {route.path}",
+            source_file=route.source_file,
+        ))
+
+
+def _plan_schema_tests(plan: TestPlan, api_routes: list[RouteInfo]) -> None:
+    """Plan API schema validation tests for endpoints."""
+    for route in api_routes:
+        if route.method != "GET":
+            continue
+        safe_name = (
+            route.path.strip("/").replace("/", "_").replace(":", "")
+            .replace("{", "").replace("}", "")
+        )
+
+        plan.schema_tests.append(TestCase(
+            name=f"schema_{safe_name}_{route.method.lower()}",
+            route=route.path,
+            method=route.method,
+            category="schema",
+            priority="high",
+            description=f"Validate response schema for {route.method} {route.path}",
             source_file=route.source_file,
         ))

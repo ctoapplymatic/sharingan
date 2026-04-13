@@ -42,6 +42,8 @@ Thumbs.db
 # Sharingan output
 SHARINGAN_REPORT.md
 SHARINGAN_PLAN.md
+SHARINGAN_NEEDS_HELP.md
+.sharingan/
 
 # Environment
 .env

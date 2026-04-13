@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sharingan-autotest"
-version = "0.1.0"
+version = "0.2.0"
 description = "Autonomous testing agent for Claude Code — discovers, tests, diagnoses, and fixes your web app"
 authors = [{name = "Shruthi Krithika", email = "cto@applymatic.ai"}]
 license = {text = "MIT"}

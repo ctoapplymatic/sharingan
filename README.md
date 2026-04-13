@@ -8,6 +8,17 @@ One command: `/sharingan`
 
 ---
 
+## What's new in v0.2
+
+- **Authenticated flow testing** — Sharingan logs in as a test user, saves session state, then runs tests as a logged-in user. Tests the parts of your app that only work behind auth.
+- **Human-in-the-loop** — When tests hit email verification, CAPTCHA, OAuth, MFA, or payment flows, Sharingan pauses, writes `SHARINGAN_NEEDS_HELP.md` with a screenshot, and waits for you to resolve. Resume with `/sharingan-resume`.
+- **Visual regression** — Every page gets a baseline screenshot on first run. Subsequent runs compare pixel-by-pixel and flag visual changes.
+- **Performance metrics** — Captures FCP, LCP, TTI, and total page weight per page. Fails builds if thresholds are exceeded.
+- **API schema validation** — Detects OpenAPI specs, validates responses against them, or infers schemas from sample responses.
+- **Smarter form testing** — Detects field types (email, password, phone, URL, date) and generates realistic valid data plus targeted invalid cases (empty, wrong format, SQL injection, XSS).
+- **Production guard** — Refuses to run against non-localhost/staging URLs unless `allow_prod` is set. Prevents accidental test user creation in production.
+- **Test user credential management** — Fallback chain: config → env vars → stored credentials → auto-generated. Passwords never logged or committed.
+
 ## How It Works
 
 Sharingan runs a 7-step autonomous loop:
