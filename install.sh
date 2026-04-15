@@ -2,7 +2,7 @@
 #
 # Sharingan v0.3 — Installer
 #
-# One-liner: curl -fsSL https://raw.githubusercontent.com/shruthikj/sharingan/main/install.sh | bash
+# One-liner: curl -fsSL https://raw.githubusercontent.com/shruthikj/sharingan-autotest/main/install.sh | bash
 #
 # What this does:
 # 1. Clones the sharingan repo to ~/.sharingan/
@@ -14,7 +14,7 @@
 
 set -e
 
-REPO_URL="${SHARINGAN_REPO:-https://github.com/shruthikj/sharingan.git}"
+REPO_URL="${SHARINGAN_REPO:-https://github.com/shruthikj/sharingan-autotest.git}"
 INSTALL_DIR="${SHARINGAN_INSTALL_DIR:-$HOME/.sharingan}"
 CLAUDE_COMMANDS_DIR="${CLAUDE_COMMANDS_DIR:-$HOME/.claude/commands}"
 
