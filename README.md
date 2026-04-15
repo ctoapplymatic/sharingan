@@ -1,14 +1,6 @@
 <div align="center">
 
-<img src="assets/sharingan.svg" alt="Sharingan" width="220">
-
-```
-   ____   _   _    _    ____  ___ _   _  ____    _    _   _
-  / ___| | | | |  / \  |  _ \|_ _| \ | |/ ___|  / \  | \ | |
-  \___ \ | |_| | / _ \ | |_) || ||  \| | |  _  / _ \ |  \| |
-   ___) ||  _  |/ ___ \|  _ < | || |\  | |_| |/ ___ \| |\  |
-  |____/ |_| |_/_/   \_\_| \_\___|_| \_|\____/_/   \_\_| \_|
-```
+<img src="assets/banner.png" alt="Sharingan — autotest" width="100%">
 
 ### Zero-config end-to-end testing for Claude Code
 
